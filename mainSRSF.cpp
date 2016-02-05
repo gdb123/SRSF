@@ -394,263 +394,291 @@ int main(int argc, char **argv)
 
 				DEPTH.copyTo(DEPTH1);
 
-				pyr = Npyr;
+                pyr = Npyr;
 
-				while (pyr >= PyrLow) 
+                while (pyr >= PyrLow) //While have not reached the lowest pyramid level 
                 {
 
-					float eta  = alfa  * Kappa;
-					float etaR = alfaR * Kappa;
+                    float eta  = alfa  * Kappa; //alfa Regularization constant
+                    float etaR = alfaR * Kappa; //alfaR Regularization for the rotational component
 
-					int ext = Wext;
 
-					while (ext > 0) {
+                    int ext = Wext; //Rigid/Non-Rigid alternations 1 by default
 
-						if (bSEL != 0) {
 
-							trackPoints(p_gray[pyr], p_Z[pyr], a_gray[pyr], a_Z[pyr], a_D[pyr], Ix[pyr], Iy[pyr], Zx[pyr], Zy[pyr], Nrigid, point, P, O, SF[3 * pyr], SF[3 * pyr + 1], SF[3 * pyr + 2], pyr,stepR, m_rgb, 0, kI, kZ, width[pyr], height[pyr], bandSF0);
-							SFrigidGLOBAL(SFrig[3*pyr], SFrig[3*pyr + 1], SFrig[3*pyr + 2],P,O, a_D[0], point, bandSF0, fcx, fcy, cx, cy, pyr);
+                    while (ext > 0) 
+                    {
 
-						}
+                        if (bSEL != 0) // Selection: 		0 <- Non-Rigid, 1 <- Rigid, 2 <- Rigid + Non-Rigid
+                        {
 
-						warps = Witer;
+                            trackPoints(p_gray[pyr], p_Z[pyr], a_gray[pyr], a_Z[pyr], a_D[pyr], Ix[pyr], Iy[pyr], Zx[pyr], Zy[pyr], Nrigid, point, P, O, SF[3 * pyr], SF[3 * pyr + 1], SF[3 * pyr + 2], pyr,stepR, m_rgb, 0, kI, kZ, width[pyr], height[pyr], bandSF0);
+                            SFrigidGLOBAL(SFrig[3*pyr], SFrig[3*pyr + 1], SFrig[3*pyr + 2],P,O, a_D[0], point, bandSF0, fcx, fcy, cx, cy, pyr);
 
+                        }
 
-						while (warps > 0 && bSEL != 1) {
+                        warps = Witer; // Gauss-Newton/TV solver alternations
 
-							trackLKrig(p_gray[pyr], p_Z[pyr], a_gray[pyr], a_Z[pyr], a_D[pyr], Ix[pyr], Iy[pyr], Zx[pyr], Zy[pyr], Niter, point, T[3 * pyr], T[3 * pyr + 1], T[3 * pyr + 2], W[3 * pyr], W[3 * pyr + 1], W[3 * pyr + 2], SFrig[3 * pyr], SFrig[3 * pyr + 1], SFrig[3 * pyr + 2], pyr, m_rgb, WW, kI, kZ, Kappa, kRot*Kappa, width[pyr], height[pyr], bandSF0, stepNR);
 
-							if (bTVvector == 1) {
 
-								TV_Moreno(W[3 * pyr], W[3 * pyr + 1], W[3 * pyr + 2], TViter, etaR);
-								TV_ROF(T[3 * pyr + 0],TViter,0.225,eta);
-								TV_ROF(T[3 * pyr + 1],TViter,0.225,eta);
-								TV_ROF(T[3 * pyr + 2],TViter,0.225,eta);					
+                        while (warps > 0 && bSEL != 1) 
+                        {
 
-							} else {
+                            trackLKrig(p_gray[pyr], p_Z[pyr], a_gray[pyr], a_Z[pyr], a_D[pyr], Ix[pyr], Iy[pyr], Zx[pyr], Zy[pyr], Niter, point, T[3 * pyr], T[3 * pyr + 1], T[3 * pyr + 2], W[3 * pyr], W[3 * pyr + 1], W[3 * pyr + 2], SFrig[3 * pyr], SFrig[3 * pyr + 1], SFrig[3 * pyr + 2], pyr, m_rgb, WW, kI, kZ, Kappa, kRot*Kappa, width[pyr], height[pyr], bandSF0, stepNR);
 
-								TV_ROF(W[3 * pyr + 0],TViter,0.225,etaR);
-								TV_ROF(W[3 * pyr + 1],TViter,0.225,etaR);
-								TV_ROF(W[3 * pyr + 2],TViter,0.225,etaR);
-								TV_ROF(T[3 * pyr + 0],TViter,0.225,eta);
-								TV_ROF(T[3 * pyr + 1],TViter,0.225,eta);
-								TV_ROF(T[3 * pyr + 2],TViter,0.225,eta);
+                            if (bTVvector == 1) // TV Rot-component:	0 < channel-by-channel, 1 <- vectorial
 
-							}
+                            {
 
-							if (warps == 1 && pyr != PyrLow) {
+                                TV_Moreno(W[3 * pyr], W[3 * pyr + 1], W[3 * pyr + 2], TViter, etaR);
+                                TV_ROF(T[3 * pyr + 0],TViter,0.225,eta);
+                                TV_ROF(T[3 * pyr + 1],TViter,0.225,eta);
+                                TV_ROF(T[3 * pyr + 2],TViter,0.225,eta);					
 
-								resize(T[3 * pyr + 0], T[3 * (pyr - 1) + 0], T[3 * (pyr - 1) + 0].size(), 0, 0, CV_INTER_CUBIC);
-								resize(T[3 * pyr + 1], T[3 * (pyr - 1) + 1], T[3 * (pyr - 1) + 1].size(), 0, 0, CV_INTER_CUBIC);
-								resize(T[3 * pyr + 2], T[3 * (pyr - 1) + 2], T[3 * (pyr - 1) + 2].size(), 0, 0, CV_INTER_CUBIC);
-								resize(W[3 * pyr + 0], W[3 * (pyr - 1) + 0], W[3 * (pyr - 1) + 0].size(), 0, 0, CV_INTER_CUBIC);
-								resize(W[3 * pyr + 1], W[3 * (pyr - 1) + 1], W[3 * (pyr - 1) + 1].size(), 0, 0, CV_INTER_CUBIC);
-								resize(W[3 * pyr + 2], W[3 * (pyr - 1) + 2], W[3 * (pyr - 1) + 2].size(), 0, 0, CV_INTER_CUBIC);
+                            } 
+                            else 
+                            {
 
-								SFrigidLOCAL(SF[3*(pyr-1)],SF[3*(pyr-1)+1],SF[3*(pyr-1)+2],T[3*(pyr-1)],T[3*(pyr-1)+1],T[3*(pyr-1)+2],W[3*(pyr-1)],W[3*(pyr-1)+1],W[3*(pyr-1)+2], a_D[0],point,bandSF0,fcx,fcy,cx,cy,pyr-1);
+                                TV_ROF(W[3 * pyr + 0],TViter,0.225,etaR);
+                                TV_ROF(W[3 * pyr + 1],TViter,0.225,etaR);
+                                TV_ROF(W[3 * pyr + 2],TViter,0.225,etaR);
+                                TV_ROF(T[3 * pyr + 0],TViter,0.225,eta);
+                                TV_ROF(T[3 * pyr + 1],TViter,0.225,eta);
+                                TV_ROF(T[3 * pyr + 2],TViter,0.225,eta);
 
+                            }
 
-							}
+                            if (warps == 1 && pyr != PyrLow) 
+                            {
 
-							printf("Processing Warp:%i Pyr:%i \n", warps, pyr);
-							warps--;
+                                resize(T[3 * pyr + 0], T[3 * (pyr - 1) + 0], T[3 * (pyr - 1) + 0].size(), 0, 0, CV_INTER_CUBIC);
+                                resize(T[3 * pyr + 1], T[3 * (pyr - 1) + 1], T[3 * (pyr - 1) + 1].size(), 0, 0, CV_INTER_CUBIC);
+                                resize(T[3 * pyr + 2], T[3 * (pyr - 1) + 2], T[3 * (pyr - 1) + 2].size(), 0, 0, CV_INTER_CUBIC);
+                                resize(W[3 * pyr + 0], W[3 * (pyr - 1) + 0], W[3 * (pyr - 1) + 0].size(), 0, 0, CV_INTER_CUBIC);
+                                resize(W[3 * pyr + 1], W[3 * (pyr - 1) + 1], W[3 * (pyr - 1) + 1].size(), 0, 0, CV_INTER_CUBIC);
+                                resize(W[3 * pyr + 2], W[3 * (pyr - 1) + 2], W[3 * (pyr - 1) + 2].size(), 0, 0, CV_INTER_CUBIC);
 
-						}
+                                SFrigidLOCAL(SF[3*(pyr-1)],SF[3*(pyr-1)+1],SF[3*(pyr-1)+2],T[3*(pyr-1)],T[3*(pyr-1)+1],T[3*(pyr-1)+2],W[3*(pyr-1)],W[3*(pyr-1)+1],W[3*(pyr-1)+2], a_D[0],point,bandSF0,fcx,fcy,cx,cy,pyr-1);
 
-						ext--;
-					}
 
-					pyr--;
-				}
+                            }
 
+                            printf("Processing Warp:%i Pyr:%i \n", warps, pyr);
+                            warps--;
 
-				if (PyrLow != 0) {
+                        }
 
-					resize(T[3 * PyrLow + 0], T[0], T[0].size(), 0, 0, CV_INTER_CUBIC);
-					resize(T[3 * PyrLow + 1], T[1], T[1].size(), 0, 0, CV_INTER_CUBIC);	
-					resize(T[3 * PyrLow + 2], T[2], T[2].size(), 0, 0, CV_INTER_CUBIC);
-					resize(W[3 * PyrLow + 0], W[0], W[0].size(), 0, 0, CV_INTER_CUBIC);
-					resize(W[3 * PyrLow + 1], W[1], W[1].size(), 0, 0, CV_INTER_CUBIC);
-					resize(W[3 * PyrLow + 2], W[2], W[2].size(), 0, 0, CV_INTER_CUBIC);
+                        ext--;
+                    }
 
-					if (Nrigid != 0) {
+                    pyr--;
+                }
 
-						SFrigidGLOBAL(SFrig[0], SFrig[1], SFrig[2],P,O, a_D[0], point, bandSF0, fcx, fcy, cx, cy, 0);
 
-					}
-				}
+                if (PyrLow != 0) 
+                {
 
+                    resize(T[3 * PyrLow + 0], T[0], T[0].size(), 0, 0, CV_INTER_CUBIC);
+                    resize(T[3 * PyrLow + 1], T[1], T[1].size(), 0, 0, CV_INTER_CUBIC);	
+                    resize(T[3 * PyrLow + 2], T[2], T[2].size(), 0, 0, CV_INTER_CUBIC);
+                    resize(W[3 * PyrLow + 0], W[0], W[0].size(), 0, 0, CV_INTER_CUBIC);
+                    resize(W[3 * PyrLow + 1], W[1], W[1].size(), 0, 0, CV_INTER_CUBIC);
+                    resize(W[3 * PyrLow + 2], W[2], W[2].size(), 0, 0, CV_INTER_CUBIC);
 
-				SFrigidLOCAL(SF[0], SF[1], SF[2], T[0], T[1], T[2], W[0], W[1], W[2], a_D[0], point, bandSF0, fcx, fcy, cx, cy, 0);
+                    if (Nrigid != 0) 
+                    {
 
-				cont = 0;
+                        SFrigidGLOBAL(SFrig[0], SFrig[1], SFrig[2],P,O, a_D[0], point, bandSF0, fcx, fcy, cx, cy, 0);
 
-				OF[0].setTo(0);
-				OF[1].setTo(0);
+                    }
+                }
 
-				OFrig[0].setTo(0);
-				OFrig[1].setTo(0);
 
-				while (cont < Npoints) {
+                SFrigidLOCAL(SF[0], SF[1], SF[2], T[0], T[1], T[2], W[0], W[1], W[2], a_D[0], point, bandSF0, fcx, fcy, cx, cy, 0);
 
-					float *Rx = (float *) SFrig[0].data;
-					float *Ry = (float *) SFrig[1].data;
-					float *Rz = (float *) SFrig[2].data;
+                cont = 0;
 
-					float rx = Rx[cont];
-					float ry = Ry[cont];
-					float rz = Rz[cont];
+                OF[0].setTo(0);
+                OF[1].setTo(0);
 
-					if (bandSF0[cont] == 1) {
+                OFrig[0].setTo(0);
+                OFrig[1].setTo(0);
 
-						warpLK(rx, ry, rz, point[cont], NEWpointRig[cont], a_D[0], bandSF0[cont], bandOF[cont], fcx, fcy, cx, cy);
+                while (cont < Npoints) 
+                {
 
-						if (bandOF[cont] == 1) {
+                    float *Rx = (float *) SFrig[0].data;
+                    float *Ry = (float *) SFrig[1].data;
+                    float *Rz = (float *) SFrig[2].data;
 
-							OFxRig[cont] = NEWpointRig[cont].x - point[cont].x;
-							OFyRig[cont] = NEWpointRig[cont].y - point[cont].y;
-						} 	
+                    float rx = Rx[cont];
+                    float ry = Ry[cont];
+                    float rz = Rz[cont];
 
-					} else {
+                    if (bandSF0[cont] == 1) 
+                    {
 
-						NEWpointRig[cont].x = point[cont].x;
-						NEWpointRig[cont].y = point[cont].y;
-						bandOF[cont] = 0;
-					}
+                        warpLK(rx, ry, rz, point[cont], NEWpointRig[cont], a_D[0], bandSF0[cont], bandOF[cont], fcx, fcy, cx, cy);
 
-					float *PPx = (float *) SF[0].data;
-					float *PPy = (float *) SF[1].data;
-					float *PPz = (float *) SF[2].data;
+                        if (bandOF[cont] == 1) 
+                        {
 
-					float px = PPx[cont];
-					float py = PPy[cont];
-					float pz = PPz[cont];
+                            OFxRig[cont] = NEWpointRig[cont].x - point[cont].x;
+                            OFyRig[cont] = NEWpointRig[cont].y - point[cont].y;
+                        } 	
 
-					if (bandSF0[cont] == 1) {
+                    }
+                    else 
+                    {
 
-						warpLK(px, py, pz, point[cont], NEWpoint[cont], a_D[0], bandSF0[cont], bandOF[cont], fcx, fcy, cx, cy);
+                        NEWpointRig[cont].x = point[cont].x;
+                        NEWpointRig[cont].y = point[cont].y;
+                        bandOF[cont] = 0;
+                    }
 
-						if (bandOF[cont] == 1) {
+                    float *PPx = (float *) SF[0].data;
+                    float *PPy = (float *) SF[1].data;
+                    float *PPz = (float *) SF[2].data;
 
-							OFx[cont] = NEWpoint[cont].x - point[cont].x;
-							OFy[cont] = NEWpoint[cont].y - point[cont].y;
-						} 	
+                    float px = PPx[cont];
+                    float py = PPy[cont];
+                    float pz = PPz[cont];
 
-					} else {
+                    if (bandSF0[cont] == 1) 
+                    {
 
-						NEWpoint[cont].x = point[cont].x;
-						NEWpoint[cont].y = point[cont].y;
-						bandOF[cont] = 0;
-					}
+                        warpLK(px, py, pz, point[cont], NEWpoint[cont], a_D[0], bandSF0[cont], bandOF[cont], fcx, fcy, cx, cy);
 
-					unsigned char *tmp = (uchar *) (Mask.data);
-					float *gris = (float *) a_gray[0].data;
+                        if (bandOF[cont] == 1) 
+                        {
 
-					if (bandSF0[cont] == 1) {
-						tmp[cont] = 255;		
+                            OFx[cont] = NEWpoint[cont].x - point[cont].x;
+                            OFy[cont] = NEWpoint[cont].y - point[cont].y;
+                        } 	
 
-					} else {
-						tmp[cont] = 0;
-					}
-					cont++;
-				}
+                    } 
+                    else 
+                    {
 
-				Vx.setTo(0);
-				Vy.setTo(0);
-				Vz.setTo(0);
+                        NEWpoint[cont].x = point[cont].x;
+                        NEWpoint[cont].y = point[cont].y;
+                        bandOF[cont] = 0;
+                    }
+
+                    unsigned char *tmp = (uchar *) (Mask.data);
+                    float *gris = (float *) a_gray[0].data;
 
-				Vx = SF[0] + SFrig[0];
-				Vy = SF[1] + SFrig[1];
-				Vz = SF[2] + SFrig[2];
+                    if (bandSF0[cont] == 1)
+                    {
+                        tmp[cont] = 255;		
 
-				if (ViewOutput == 1) {
+                    } 
+                    else 
+                    {
+                        tmp[cont] = 0;
+                    }
+                    cont++;
+                }
 
-					consistencySF(Vx,Vy,Vz, point, gray0, gray1, DEPTH0, DEPTH1, diffI, diffD, Iwarped, Dwarped, bandSF0, bandSF2, fcx, fcy, cx, cy, constZ);
-
-					sprintf(name, "./output/Iwarped.png");
-					imwrite(name, Iwarped);
-					sprintf(name, "./output/Dwarped.png");
-					imwrite(name, Dwarped);
-					sprintf(name, "./output/Idiff.png");
-					imwrite(name, diffI);
-					sprintf(name, "./output/Ddiff.png");
-					imwrite(name, diffD);
-
-					sprintf(name, "./output/Mask.png");
-					imwrite(name, Mask);
-
-					if (bSEL != 1) {
-
-						coloreaOF(OFimg, point, NEWpoint, Npoints, ViewOF, bandOF);
-						sprintf(name, "./output/OF.png");
-						imwrite(name, OFimg);
-
-						float maxX = maximo(SF[0],bandSF0);
-						float maxY = maximo(SF[1],bandSF0);
-						float maxZ = maximo(SF[2],bandSF0);
-						float max3D = findMAX3D(maxX,maxY,maxZ,0.25);
-
-						coloreaSF(RGBx, SF[0], point, Npoints, bandSF0, max3D);
-						coloreaSF(RGBy, SF[1], point, Npoints, bandSF0, max3D);
-						coloreaSF(RGBz, SF[2], point, Npoints, bandSF0, max3D);
-
-						sprintf(name, "./output/SFx-max%i.png", int (10 * maxX));
-						imwrite(name, RGBx);
-						sprintf(name, "./output/SFy-max%i.png", int (10 * maxY));
-						imwrite(name, RGBy);
-						sprintf(name, "./output/SFz-max%i.png", int (10 * maxZ));
-						imwrite(name, RGBz);
-
-					}
-
-					if (bSEL != 0) {
-
-						coloreaOF(OFimg, point, NEWpointRig, Npoints, ViewOF, bandOF);
-						sprintf(name, "./output/OF_Rig.png");
-						imwrite(name, OFimg);
-
-						float maxX = maximo(SFrig[0],bandSF0);
-						float maxY = maximo(SFrig[1],bandSF0);
-						float maxZ = maximo(SFrig[2],bandSF0);
-						float max3D = findMAX3D(maxX,maxY,maxZ,0.25);
-
-						coloreaSF(RGBx, SFrig[0], point, Npoints, bandSF0,max3D);
-						coloreaSF(RGBy, SFrig[1], point, Npoints, bandSF0,max3D);
-						coloreaSF(RGBz, SFrig[2], point, Npoints, bandSF0,max3D);
-
-						sprintf(name, "./output/SFx_Rig-max%i.png", int (10 * maxX));
-						imwrite(name, RGBx);
-						sprintf(name, "./output/SFy_Rig-max%i.png", int (10 * maxY));
-						imwrite(name, RGBy);
-						sprintf(name, "./output/SFz_Rig-max%i.png", int (10 * maxZ));
-						imwrite(name, RGBz);
-
-					}
-
-				}
-
-				SFlow << "Frame" << im;
-				SFlow << "Rotation" << O;
-				SFlow << "Translation" << P;
-				SFlow << "SFx" << Vx;
-				SFlow << "SFy" << Vy;
-				SFlow << "SFz" << Vz;
-				SFlow << "Mask" << Mask;
-
-
-			}
-
-			printf("Frame %i \n",im);
-			im = im_f;  
-			Bframe++;       
-		}    	
-	}
-
-	SFlow.release();
-	cvNamedWindow("Iw");
-	imshow("Iw", Iwarped);
-	cvNamedWindow( "Idiff" );
-	imshow("Idiff",diffI);
-	cvWaitKey(0);
-	return 0;
+                Vx.setTo(0);
+                Vy.setTo(0);
+                Vz.setTo(0);
+
+                Vx = SF[0] + SFrig[0];
+                Vy = SF[1] + SFrig[1];
+                Vz = SF[2] + SFrig[2];
+
+                if (ViewOutput == 1)
+                {
+
+                    consistencySF(Vx,Vy,Vz, point, gray0, gray1, DEPTH0, DEPTH1, diffI, diffD, Iwarped, Dwarped, bandSF0, bandSF2, fcx, fcy, cx, cy, constZ);
+
+                    sprintf(name, "./output/Iwarped.png");
+                    imwrite(name, Iwarped);
+                    sprintf(name, "./output/Dwarped.png");
+                    imwrite(name, Dwarped);
+                    sprintf(name, "./output/Idiff.png");
+                    imwrite(name, diffI);
+                    sprintf(name, "./output/Ddiff.png");
+                    imwrite(name, diffD);
+
+                    sprintf(name, "./output/Mask.png");
+                    imwrite(name, Mask);
+
+                    if (bSEL != 1)
+                    {
+
+                        coloreaOF(OFimg, point, NEWpoint, Npoints, ViewOF, bandOF);
+                        sprintf(name, "./output/OF.png");
+                        imwrite(name, OFimg);
+
+                        float maxX = maximo(SF[0],bandSF0);
+                        float maxY = maximo(SF[1],bandSF0);
+                        float maxZ = maximo(SF[2],bandSF0);
+                        float max3D = findMAX3D(maxX,maxY,maxZ,0.25);
+
+                        coloreaSF(RGBx, SF[0], point, Npoints, bandSF0, max3D);
+                        coloreaSF(RGBy, SF[1], point, Npoints, bandSF0, max3D);
+                        coloreaSF(RGBz, SF[2], point, Npoints, bandSF0, max3D);
+
+                        sprintf(name, "./output/SFx-max%i.png", int (10 * maxX));
+                        imwrite(name, RGBx);
+                        sprintf(name, "./output/SFy-max%i.png", int (10 * maxY));
+                        imwrite(name, RGBy);
+                        sprintf(name, "./output/SFz-max%i.png", int (10 * maxZ));
+                        imwrite(name, RGBz);
+
+                    }
+
+                    if (bSEL != 0)
+                    {
+
+                        coloreaOF(OFimg, point, NEWpointRig, Npoints, ViewOF, bandOF);
+                        sprintf(name, "./output/OF_Rig.png");
+                        imwrite(name, OFimg);
+
+                        float maxX = maximo(SFrig[0],bandSF0);
+                        float maxY = maximo(SFrig[1],bandSF0);
+                        float maxZ = maximo(SFrig[2],bandSF0);
+                        float max3D = findMAX3D(maxX,maxY,maxZ,0.25);
+
+                        coloreaSF(RGBx, SFrig[0], point, Npoints, bandSF0,max3D);
+                        coloreaSF(RGBy, SFrig[1], point, Npoints, bandSF0,max3D);
+                        coloreaSF(RGBz, SFrig[2], point, Npoints, bandSF0,max3D);
+
+                        sprintf(name, "./output/SFx_Rig-max%i.png", int (10 * maxX));
+                        imwrite(name, RGBx);
+                        sprintf(name, "./output/SFy_Rig-max%i.png", int (10 * maxY));
+                        imwrite(name, RGBy);
+                        sprintf(name, "./output/SFz_Rig-max%i.png", int (10 * maxZ));
+                        imwrite(name, RGBz);
+
+                    }
+
+                }
+
+                SFlow << "Frame" << im;
+                SFlow << "Rotation" << O;
+                SFlow << "Translation" << P;
+                SFlow << "SFx" << Vx;
+                SFlow << "SFy" << Vy;
+                SFlow << "SFz" << Vz;
+                SFlow << "Mask" << Mask;
+
+
+            }
+
+            printf("Frame %i \n",im);
+            im = im_f;  
+            Bframe++;       
+        }    	
+    }
+
+    SFlow.release();
+    cvNamedWindow("Iw");
+    imshow("Iw", Iwarped);
+    cvNamedWindow( "Idiff" );
+    imshow("Idiff",diffI);
+    cvWaitKey(0);
+    return 0;
 }
