@@ -16,14 +16,17 @@ using namespace std;
 
 void readyDepth(Mat &DEPTHalign, Mat &Z0, Mat &D0, int constZ, int MAXZ, int MINZ)
 {
+    // Transform the depth in cm and set depth out of range as NaN
+
 	int w = DEPTHalign.cols;
 	int h = DEPTHalign.rows;
-	int wh = w*h;
+	int wh = w*h; // Total num of the image points
 	float z;
 	int d;
 	float *dataZ = (float*)Z0.data;
 	float *dataD = (float*)D0.data;
 
+    // Apply median filter the blur the depth image
 	Mat DEPTH = Mat(h,w,CV_16U);
 	medianBlur(DEPTHalign,DEPTH,5);
 	medianBlur(DEPTH,DEPTHalign,3);
@@ -32,7 +35,8 @@ void readyDepth(Mat &DEPTHalign, Mat &Z0, Mat &D0, int constZ, int MAXZ, int MIN
 	int cont = 0;
 	ushort* tmp_apun = (ushort*)(DEPTH.data);
 
-	while (cont < wh) {
+	while (cont < wh) // For each image point
+    {
 
 		d = tmp_apun[cont];
 
@@ -43,7 +47,8 @@ void readyDepth(Mat &DEPTHalign, Mat &Z0, Mat &D0, int constZ, int MAXZ, int MIN
 			dataD[cont] = 1./z;
 		}
 
-		else{
+		else
+        {
 
 			dataZ[cont] = NaN;
 			dataD[cont] = NaN;
@@ -57,6 +62,8 @@ void readyDepth(Mat &DEPTHalign, Mat &Z0, Mat &D0, int constZ, int MAXZ, int MIN
 
 void buenPunto(Mat Z, CvPoint2D32f punto[], int band[], int Npuntos, int MAXZ, int MINZ, int Wx, int Wy)
 {
+    // punto[] is point[] 2D image point coordinate
+    // set the mask, 0--Nan, 1--Out of range, 2--valid
 
 	float *data = (float*)Z.data;
 
@@ -67,24 +74,25 @@ void buenPunto(Mat Z, CvPoint2D32f punto[], int band[], int Npuntos, int MAXZ, i
 
 	int cont = 0;
 
-	while (cont < Npuntos){
+	while (cont < Npuntos)
+    {
 
 		int x = punto[cont].x;
 		int y = punto[cont].y;
 
 		if (data[cont] > MAXZ || data[cont] < MINZ || x < minX || y < minY || x > maxX || y > maxY ) {
 
-			band[cont] = 2;
+			band[cont] = 2; //Valid is set to 2
 		}
 
 		else if ( data[cont] != data[cont]) {
 
-			band[cont] = 0;
+			band[cont] = 0; //NaN is set to 0
 		}
 
 		else {
 
-			band[cont] = 1;
+			band[cont] = 1; //Out of range is set to 1
 
 		}
 		cont ++;

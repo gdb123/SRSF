@@ -67,7 +67,7 @@ using namespace std;
 Mat gray0 = Mat(height[0],width[0],CV_8U);
 Mat gray1 = Mat(height[0],width[0],CV_8U);
 
-Mat P = Mat(3,1,CV_32FC1);
+Mat P = Mat(3,1,CV_32FC1); //What is that 3*1 vector
 Mat O = Mat(3,1,CV_32FC1);
 
 Mat Vx = Mat::zeros(height[0],width[0],CV_32FC1);
@@ -76,12 +76,12 @@ Mat Vz = Mat::zeros(height[0],width[0],CV_32FC1);
 
 Mat DEPTH0,DEPTH1;
 
-CvPoint2D32f *point = new CvPoint2D32f[Npoints];
+CvPoint2D32f *point = new CvPoint2D32f[Npoints]; //This is 2D image coordinate for each image points, used for u,v look up
 CvPoint2D32f *NEWpointRig = new CvPoint2D32f[Npoints];
 CvPoint2D32f *NEWpoint = new CvPoint2D32f[Npoints];
 
 float fcx,fcy,cx,cy;
-int im,im_i,im_f;
+int im,im_i,im_f; // im_i is the second parameter, im_f is the third parameter
 
 int main(int argc, char **argv)
 {
@@ -165,7 +165,7 @@ int main(int argc, char **argv)
 	FileStorage SFlow;
 	SFlow.open("./output/SFlow.xml", FileStorage::WRITE);
 
-	Mat Mrgb = Mat(3,3,CV_32FC1);
+	Mat Mrgb = Mat(3,3,CV_32FC1); //Intrinsics camera matrix K
 	Mat Rq = Mat(4,1,CV_32FC1);
 	Mat Tq = Mat(3,1,CV_32FC1);
 	float *verRq = (float*)Rq.data;
@@ -186,28 +186,28 @@ int main(int argc, char **argv)
 	cx = m_rgb[0][2];
 	cy = m_rgb[1][2];
 
-	Mat gray = Mat(height[PyrLow], width[PyrLow], CV_8U);
+	Mat gray = Mat(height[PyrLow], width[PyrLow], CV_8U); //PyrLow = 0 by default
 	Mat RGBx = Mat(height[0], width[0], CV_8UC3);
 	Mat RGBy = Mat(height[0], width[0], CV_8UC3);
 	Mat RGBz = Mat(height[0], width[0], CV_8UC3);
 	Mat Iwarped = Mat(height[0], width[0], CV_8U);
 	Mat Dwarped = Mat(height[0], width[0], CV_8U);
 
-	Mat OFimg = Mat(height[0], width[0], CV_8UC3);
+	Mat OFimg = Mat(height[0], width[0], CV_8UC3); //Optical flow image
 
-	vector < Mat > OF(2);
+	vector < Mat > OF(2); //Optical flow in x(u) and y(v)
 	OF[0] = Mat::zeros(height[0], width[0], CV_32FC1);
 	OF[1] = Mat::zeros(height[0], width[0], CV_32FC1);
 	float *OFx = (float *) (OF[0].data);
 	float *OFy = (float *) (OF[1].data);
 
-	vector < Mat > OFrig(2);
+	vector < Mat > OFrig(2); //Rigid Optical flow in x(u) and y(v)
 	OFrig[0] = Mat::zeros(height[0], width[0], CV_32FC1);
 	OFrig[1] = Mat::zeros(height[0], width[0], CV_32FC1);
 	float *OFxRig = (float *) (OFrig[0].data);
 	float *OFyRig = (float *) (OFrig[1].data);
 
-	Mat Mask = Mat(height[0], width[0], CV_8U);
+	Mat Mask = Mat(height[0], width[0], CV_8U); //Filter out invalid depth pixel
 
 	Mat aux0 = Mat(height[0], width[0], CV_32FC1);
 	Mat aux1 = Mat(height[0], width[0], CV_32FC1);
@@ -219,13 +219,13 @@ int main(int argc, char **argv)
 	vector < Mat > p_D(Npyr + 1);
 	vector < Mat > p_Z(Npyr + 1);
 	vector < Mat > a_gray(Npyr + 1);
-	vector < Mat > a_D(Npyr + 1);
-	vector < Mat > a_Z(Npyr + 1);
+	vector < Mat > a_D(Npyr + 1); // D is inverse dpeth
+	vector < Mat > a_Z(Npyr + 1); // Z is depth, the Z coordinate of the 3D points
 	vector < Mat > Ix(Npyr + 1);
 	vector < Mat > Iy(Npyr + 1);
 	vector < Mat > Zx(Npyr + 1);
 	vector < Mat > Zy(Npyr + 1);
-	vector < Mat > T(3 * (Npyr + 1));
+	vector < Mat > T(3 * (Npyr + 1)); //(t_0, t_1, t_2) for each pixel in each pyramid
 	vector < Mat > W(3 * (Npyr + 1));
 	vector < Mat > SF(3 * (Npyr + 1));
 	vector < Mat > SFrig(3 * (Npyr + 1));
@@ -260,7 +260,7 @@ int main(int argc, char **argv)
 	O.setTo(0);
 
 	Mat G = Mat(3, 3, CV_32FC1);
-	float *verG = (float*)G.data;
+	float *verG = (float*)G.data; //3*3 Gaussian mask for filtering
 
 	verG[0] = Gauss[0][0];
 	verG[1] = Gauss[0][1];
@@ -272,17 +272,19 @@ int main(int argc, char **argv)
 	verG[7] = Gauss[2][1];
 	verG[8] = Gauss[2][2];
 
-	Mat Ikappa = Mat::zeros(3, 3, CV_32FC1);
+	Mat Ikappa = Mat::zeros(3, 3, CV_32FC1); //What is that 3*3 matrix?
 	float *VERkappa = (float *) (Ikappa.data);
 
 	int *bandOF = new int[Npoints];
 	int *bandSF0 = new int[Npoints];
 	int *bandSF1 = new int[Npoints];
 	int *bandSF2 = new int[Npoints];
-	int *bandPYR = new int[Npoints];
+	int *bandPYR = new int[Npoints]; //what does PYR mean?
 
 	cont = 0;
 
+    // Initialize the points coordinate and store the points in vector form
+    // Store along the row
 	for (int i = 0; i < Npy; i++) {
 		for (int j = 0; j < Npx; j++) {
 
@@ -298,7 +300,8 @@ int main(int argc, char **argv)
 	Mat RGB;
 	Mat DEPTH;
 
-	while (Bframe < 2) {
+	while (Bframe < 2) // Read these two image im_i and img_f
+    {
 
 		sprintf(name, "./Images/color_%04d.png",im);
 		RGB = imread(name);
@@ -306,24 +309,30 @@ int main(int argc, char **argv)
 		sprintf(name, "./Images/depth_%04d.png",im);
 		DEPTH = imread(name, CV_LOAD_IMAGE_UNCHANGED);
 
-		if (RGB.empty() || DEPTH.empty()) {
+		if (RGB.empty() || DEPTH.empty()) 
+        {
 
 			printf ("Invalid RGB or depth image \n");
 			return(0);
 
-		} else {
+		} 
+        else 
+        {
 
-			if (im == im_i) {
+			if (im == im_i) 
+            {
 
-				readyDepth(DEPTH, a_Z[0], a_D[0], constZ, maxZ, minZ);
-				buenPunto(a_Z[0], point, bandSF0, Npoints, maxZ, minZ, cropX, cropY);
+                // The first image
+				readyDepth(DEPTH, a_Z[0], a_D[0], constZ, maxZ, minZ); //Transform the depth in cm and set depth out of range as NaN
+				buenPunto(a_Z[0], point, bandSF0, Npoints, maxZ, minZ, cropX, cropY); //Set the Mask image of scene flow 
 
 				cvtColor(RGB, gray0, CV_BGR2GRAY);
 				pyr = 0;
 				gray0.convertTo(aux0, CV_32FC1);
-				filter2D(aux0, a_gray[0], -1, G, Point(-1, -1), 0, BORDER_DEFAULT);
+				filter2D(aux0, a_gray[0], -1, G, Point(-1, -1), 0, BORDER_DEFAULT); //Apply Guassian filter
 
-				while (pyr < Npyr) {
+				while (pyr < Npyr) //Still in the pyramid 
+                {
 
 					resize(a_gray[0], a_gray[pyr + 1], a_gray[pyr + 1].size(), 0, 0, CV_INTER_CUBIC);
 					resize(a_Z[0], a_Z[pyr + 1], a_Z[pyr + 1].size(), 0, 0, CV_INTER_NN);
@@ -332,16 +341,22 @@ int main(int argc, char **argv)
 
 				}
 				while (pyr >= 0) {
-					escalar(a_gray[pyr], 255);
+					escalar(a_gray[pyr], 255); //For point multiple with 1/255
 					pyr--;
 				}
 
 				DEPTH.copyTo(DEPTH0);			
 
-			} else {
+			} 
+            else
+            {
+                //The second image
 				pyr = Npyr;
-				while (pyr >= 0) {
-					Sobel(a_Z[pyr], Zx[pyr], -1, 1, 0, 1);
+
+                //Calculate the derivative image of first depth image
+				while (pyr >= 0) 
+                {
+					Sobel(a_Z[pyr], Zx[pyr], -1, 1, 0, 1); 
 					Sobel(a_Z[pyr], Zy[pyr], -1, 0, 1, 1);
 					pyr--;
 				}
@@ -354,7 +369,8 @@ int main(int argc, char **argv)
 				gray1.convertTo(aux0, CV_32FC1);
 				filter2D(aux0, p_gray[0], -1, G, Point(-1, -1), 0, BORDER_DEFAULT);
 
-				while (pyr < Npyr) {
+				while (pyr < Npyr) 
+                {
 
 					resize(p_gray[0], p_gray[pyr + 1], p_gray[pyr + 1].size(), 0, 0, CV_INTER_CUBIC);
 					resize(p_Z[0], p_Z[pyr + 1], p_Z[pyr + 1].size(), 0, 0, CV_INTER_NN);
@@ -362,7 +378,10 @@ int main(int argc, char **argv)
 					pyr++;
 
 				}
-				while (pyr >= 0) {
+
+                //Calculate the derivative image of second depth image and gray image
+				while (pyr >= 0) 
+                {
 
 					escalar(p_gray[pyr], 255);
 					Sobel(p_gray[pyr], Ix[pyr], -1, 1, 0, 1);
@@ -377,7 +396,8 @@ int main(int argc, char **argv)
 
 				pyr = Npyr;
 
-				while (pyr >= PyrLow) {
+				while (pyr >= PyrLow) 
+                {
 
 					float eta  = alfa  * Kappa;
 					float etaR = alfaR * Kappa;
