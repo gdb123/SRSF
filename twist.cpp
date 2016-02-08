@@ -134,7 +134,9 @@ void warpLKrig_pyr(const Mat &P, const Mat &O, Mat &DZ, const Mat &oldX, const M
 	}
 }
 
-void trackLKrig(const Mat &gray, const Mat &Z, const Mat &a_gray, const Mat &a_Z, const Mat &a_D, const Mat &Ix, const Mat &Iy, const Mat &Zx, const Mat &Zy, int Niter, CvPoint2D32f punto[],Mat &Px, Mat &Py, Mat &Pz, Mat &Ox, Mat &Oy, Mat &Oz, Mat &RigX, Mat &RigY, Mat &RigZ, int pyr, float m_rgb[3][3], int WW, float kI, float kZ, float tetaP, float tetaO, int Npx, int Npy, int band[],int step)
+void trackLKrig(const Mat &gray, const Mat &Z, const Mat &a_gray, const Mat &a_Z, const Mat &a_D, const Mat &Ix, const Mat &Iy, const Mat &Zx, 
+        const Mat &Zy, int Niter, CvPoint2D32f punto[],Mat &Px, Mat &Py, Mat &Pz, Mat &Ox, Mat &Oy, Mat &Oz, Mat &RigX, Mat &RigY, Mat &RigZ, 
+        int pyr, float m_rgb[3][3], int WW, float kI, float kZ, float tetaP, float tetaO, int Npx, int Npy, int band[],int step)
 {
 	int W = 2*WW+1;
 	int W2 = W*W;
@@ -258,235 +260,241 @@ void trackLKrig(const Mat &gray, const Mat &Z, const Mat &a_gray, const Mat &a_Z
 	float *vJy3 = (float*)Jy3.data;
 	float *vJ11 = (float*)J11.data;
 	float *vJ12 = (float*)J12.data;
-	float *vJ13 = (float*)J13.data;
-	float *vJ21 = (float*)J21.data;
-	float *vJ22 = (float*)J22.data;
-	float *vJ23 = (float*)J23.data;
-	float *vPhiI = (float*)PhiI.data;
-	float *vPhiZ = (float*)PhiZ.data;
+    float *vJ13 = (float*)J13.data;
+    float *vJ21 = (float*)J21.data;
+    float *vJ22 = (float*)J22.data;
+    float *vJ23 = (float*)J23.data;
+    float *vPhiI = (float*)PhiI.data;
+    float *vPhiZ = (float*)PhiZ.data;
 
-	Mat H = Mat(6,6,CV_32FC1);
-	float* mH = (float*)H.data;
+    Mat H = Mat(6,6,CV_32FC1);
+    float* mH = (float*)H.data;
 
-	Mat delta = Mat(6,1,CV_32FC1);
-	float* mDelta = (float*)delta.data;
+    Mat delta = Mat(6,1,CV_32FC1);
+    float* mDelta = (float*)delta.data;
 
-	Mat dP = Mat(6,1,CV_32FC1);
-	float* deltaP = (float*)dP.data;
+    Mat dP = Mat(6,1,CV_32FC1);
+    float* deltaP = (float*)dP.data;
 
-	int point;
+    int point;
 
-	CvPoint2D32f punto2;
+    CvPoint2D32f punto2;
 
-	creaGrilla(X,Y);
-	subtract(X,cx,aux1);
-	multiply(a_Z,aux1,X,1.0/fcx);	
-	subtract(Y,cy,aux1);
-	multiply(a_Z,aux1,Y,1.0/fcy);
+    creaGrilla(X,Y);
+    subtract(X,cx,aux1);
+    multiply(a_Z,aux1,X,1.0/fcx);	
+    subtract(Y,cy,aux1);
+    multiply(a_Z,aux1,Y,1.0/fcy);
 
-	int Npoint;
+    int Npoint;
 
-	for (int i=step; i<Npy-step; i = i + step + 1) {
+    for (int i=step; i<Npy-step; i = i + step + 1) 
+    {
 
-		int ii = i*width[0]*pot;
+        int ii = i*width[0]*pot;
 
-		for (int j=step; j<Npx-step; j = j + step + 1 ) {
+        for (int j=step; j<Npx-step; j = j + step + 1 )
+        {
 
-			point = ii+j*pot;
-			Npoint = i*Npx+j;
+            point = ii+j*pot;
+            Npoint = i*Npx+j;
 
-			if (band[point] == 1) {
+            if (band[point] == 1)
+            {
 
-				punto2.x = (punto[point].x/pot);
-				punto2.y = (punto[point].y/pot);
+                punto2.x = (punto[point].x/pot);
+                punto2.y = (punto[point].y/pot);
 
-				creaGrillaLK(grillaX,grillaY,punto2,WW);
+                creaGrillaLK(grillaX,grillaY,punto2,WW);
 
-				remap(a_gray,Ti,grillaX,grillaY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
-				remap(a_D,Td,grillaX,grillaY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
-				remap(a_Z,Tz,grillaX,grillaY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
-				remap(X,XX,grillaX,grillaY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
-				remap(Y,YY,grillaX,grillaY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
+                remap(a_gray,Ti,grillaX,grillaY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
+                remap(a_D,Td,grillaX,grillaY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
+                remap(a_Z,Tz,grillaX,grillaY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
+                remap(X,XX,grillaX,grillaY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
+                remap(Y,YY,grillaX,grillaY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
 
-				int cont = Niter;
+                int cont = Niter;
 
-				p[0] = PPx[Npoint];
-				p[1] = PPy[Npoint];
-				p[2] = PPz[Npoint];
-				o[0] = OOx[Npoint];
-				o[1] = OOy[Npoint];
-				o[2] = OOz[Npoint];
-				t[0] = Rx[Npoint];
-				t[1] = Ry[Npoint];
-				t[2] = Rz[Npoint];
-				u[0] = ux[Npoint];
-				u[1] = uy[Npoint];
-				u[2] = uz[Npoint];
-				q[0] = qx[Npoint];
-				q[1] = qy[Npoint];
-				q[2] = qz[Npoint];
+                p[0] = PPx[Npoint];
+                p[1] = PPy[Npoint];
+                p[2] = PPz[Npoint];
+                o[0] = OOx[Npoint];
+                o[1] = OOy[Npoint];
+                o[2] = OOz[Npoint];
+                t[0] = Rx[Npoint];
+                t[1] = Ry[Npoint];
+                t[2] = Rz[Npoint];
+                u[0] = ux[Npoint];
+                u[1] = uy[Npoint];
+                u[2] = uz[Npoint];
+                q[0] = qx[Npoint];
+                q[1] = qy[Npoint];
+                q[2] = qz[Npoint];
 
-				while (cont > 0) {
+                while (cont > 0)
+                {
 
-					H11=0;H12=0;H13=0;H14=0;H15=0;H16=0;H22=0;H23=0;H24=0;H25=0;H26=0;H33=0;H34=0;H35=0;H36=0;H44=0;H45=0;H46=0;H55=0;H56=0;H66=0;
-					d1=0;d2=0;d3=0;d4=0;d5=0;d6=0;
+                    H11=0;H12=0;H13=0;H14=0;H15=0;H16=0;H22=0;H23=0;H24=0;H25=0;H26=0;H33=0;H34=0;H35=0;H36=0;H44=0;H45=0;H46=0;H55=0;H56=0;H66=0;
+                    d1=0;d2=0;d3=0;d4=0;d5=0;d6=0;
 
-					// 1) Compute warped image with current parameters
-					warpLKrig_pyr(P+T,O,DZ,grillaX,grillaY,newX,newY,Td,fcx,fcy,cx,cy);
-					convertMaps(newX,newY,newXX,newYY,CV_16SC2);
-
-
-					remap(gray,TnewI,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
-					remap(Z,TnewZ,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
-
-					// 2) Compute error image
-
-					subtract(Ti,TnewI,imDIF);
-					phi(imDIF,PhiI,0.000001,Itr*0.1);
-					revisa(imDIF);
-					revisa(PhiI);
-
-					add(Tz,DZ,aux1);
-					subtract(aux1,TnewZ,zDIF); 
-					phi(zDIF,PhiZ,0.000001,Ztr*10);
-					revisa(zDIF);
-					revisa(PhiZ);
-
-					// 3) EvaLate gradient
-
-					remap(Ix,TIx,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
-					remap(Iy,TIy,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
-					remap(Zx,TZx,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
-					remap(Zy,TZy,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
-
-					// 4) EvaLate Jacobian (dW/dP = [Jx1 0 Jx3; 0 Jy2 Jy3])
-
-					if (cont == Niter)
-					{
-						jacobian_pyr(Jx1,Jy2,Jx3,Jy3,J11,J12,J13,J21,J22,J23,grillaX,grillaY,Td,fcx,fcy,cx,cy);
-					}
-
-					int pos = 0;
-
-					while (pos < W2)
-					{
-						IJ1 = vTIx[pos]*vJx1[pos];
-						IJ2 =                       vTIy[pos]*vJy2[pos];
-						IJ3 = vTIx[pos]*vJx3[pos] + vTIy[pos]*vJy3[pos];
-						IJ4 = vTIx[pos]*vJ11[pos] + vTIy[pos]*vJ21[pos];
-						IJ5 = vTIx[pos]*vJ12[pos] + vTIy[pos]*vJ22[pos];
-						IJ6 = vTIx[pos]*vJ13[pos] + vTIy[pos]*vJ23[pos];
-
-						ZJ1 = vTZx[pos]*vJx1[pos];
-						ZJ2 =                       vTZy[pos]*vJy2[pos];
-						ZJ3 = vTZx[pos]*vJx3[pos] + vTZy[pos]*vJy3[pos] - 1;
-						ZJ4 = vTZx[pos]*vJ11[pos] + vTZy[pos]*vJ21[pos] - vY[pos];
-						ZJ5 = vTZx[pos]*vJ12[pos] + vTZy[pos]*vJ22[pos] + vX[pos];
-						ZJ6 = vTZx[pos]*vJ13[pos] + vTZy[pos]*vJ23[pos];			
-
-						float eI = vimDIF[pos];
-						float eZ = vzDIF[pos];
-
-						if (!(IJ1 != IJ1 || IJ2 != IJ2 || IJ3 != IJ3 || IJ4 != IJ4 || IJ5 != IJ5 || IJ6 != IJ6 || ZJ1 != ZJ1 || ZJ2 != ZJ2 || ZJ3 != ZJ3 || ZJ4 != ZJ4 || ZJ5 != ZJ5 || ZJ6 != ZJ6  || eI != eI  || eZ  != eZ))
-						{
-
-							float phiI = vPhiI[pos]*IJ1*kI;
-							float phiZ = vPhiZ[pos]*ZJ1*kZ;		
-
-							H11 = H11 + phiI *IJ1 +phiZ*ZJ1;
-							H12 = H12 + phiI *IJ2 +phiZ*ZJ2;
-							H13 = H13 + phiI *IJ3 +phiZ*ZJ3;
-							H14 = H14 + phiI *IJ4 +phiZ*ZJ4;
-							H15 = H15 + phiI *IJ5 +phiZ*ZJ5;
-							H16 = H16 + phiI *IJ6 +phiZ*ZJ6;
-							d1 = d1 + phiI*eI + phiZ*eZ; 
-
-							phiI = vPhiI[pos]*IJ2*kI;
-							phiZ = vPhiZ[pos]*ZJ2*kZ;				
-							H22 = H22 + phiI *IJ2 +phiZ*ZJ2;
-							H23 = H23 + phiI *IJ3 +phiZ*ZJ3;
-							H24 = H24 + phiI *IJ4 +phiZ*ZJ4;
-							H25 = H25 + phiI *IJ5 +phiZ*ZJ5;
-							H26 = H26 + phiI *IJ6 +phiZ*ZJ6;
-							d2 = d2 + phiI*eI + phiZ*eZ; 
-
-							phiI = vPhiI[pos]*IJ3*kI;
-							phiZ = vPhiZ[pos]*ZJ3*kZ;				
-							H33 = H33 + phiI *IJ3 +phiZ*ZJ3;
-							H34 = H34 + phiI *IJ4 +phiZ*ZJ4;
-							H35 = H35 + phiI *IJ5 +phiZ*ZJ5;
-							H36 = H36 + phiI *IJ6 +phiZ*ZJ6;
-							d3 = d3 + phiI*eI + phiZ*eZ; 
-
-							phiI = vPhiI[pos]*IJ4*kI;
-							phiZ = vPhiZ[pos]*ZJ4*kZ;				
-							H44 = H44 + phiI *IJ4 +phiZ*ZJ4;
-							H45 = H45 + phiI *IJ5 +phiZ*ZJ5;
-							H46 = H46 + phiI *IJ6 +phiZ*ZJ6;
-							d4 = d4 + phiI*eI + phiZ*eZ; 
-
-							phiI = vPhiI[pos]*IJ5*kI;
-							phiZ = vPhiZ[pos]*ZJ5*kZ;				
-							H55 = H55 + phiI *IJ5 +phiZ*ZJ5;
-							H56 = H56 + phiI *IJ6 +phiZ*ZJ6;
-							d5 = d5 + phiI*eI + phiZ*eZ; 
-
-							phiI = vPhiI[pos]*IJ6*kI;
-							phiZ = vPhiZ[pos]*ZJ6*kZ;				
-							H66 = H66 + phiI *IJ6 +phiZ*ZJ6;
-							d6 = d6 + phiI*eI + phiZ*eZ; 
+                    // 1) Compute warped image with current parameters
+                    warpLKrig_pyr(P+T,O,DZ,grillaX,grillaY,newX,newY,Td,fcx,fcy,cx,cy);
+                    convertMaps(newX,newY,newXX,newYY,CV_16SC2);
 
 
-						}	 
-						pos++;
-					}
+                    remap(gray,TnewI,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
+                    remap(Z,TnewZ,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
 
-					mH[0*6+0] = H11+tetaP; mH[0*6+1] = H12; mH[0*6+2] = H13; mH[0*6+3] = H14; mH[0*6+4] = H15; mH[0*6+5] = H16; 
-					mH[1*6+0] = H12; mH[1*6+1] = H22+tetaP; mH[1*6+2] = H23; mH[1*6+3] = H24; mH[1*6+4] = H25; mH[1*6+5] = H26; 
-					mH[2*6+0] = H13; mH[2*6+1] = H23; mH[2*6+2] = H33+tetaP; mH[2*6+3] = H34; mH[2*6+4] = H35; mH[2*6+5] = H36; 
-					mH[3*6+0] = H14; mH[3*6+1] = H24; mH[3*6+2] = H34; mH[3*6+3] = H44+tetaO; mH[3*6+4] = H45; mH[3*6+5] = H46; 
-					mH[4*6+0] = H15; mH[4*6+1] = H25; mH[4*6+2] = H35; mH[4*6+3] = H45; mH[4*6+4] = H55+tetaO; mH[4*6+5] = H56;
-					mH[5*6+0] = H16; mH[5*6+1] = H26; mH[5*6+2] = H36; mH[5*6+3] = H46; mH[5*6+4] = H56; mH[5*6+5] = H66+tetaO; 
+                    // 2) Compute error image
 
-					mDelta[0] = d1 + tetaP*(u[0]-p[0]); 
-					mDelta[1] = d2 + tetaP*(u[1]-p[1]); 
-					mDelta[2] = d3 + tetaP*(u[2]-p[2]);
-					mDelta[3] = d4 + tetaO*(q[0]-o[0]); 
-					mDelta[4] = d5 + tetaO*(q[1]-o[1]); 
-					mDelta[5] = d6 + tetaO*(q[2]-o[2]);  
+                    subtract(Ti,TnewI,imDIF);
+                    phi(imDIF,PhiI,0.000001,Itr*0.1);
+                    revisa(imDIF);
+                    revisa(PhiI);
 
-					dP = H.inv()*delta;
-					update(P,O,dP);
+                    add(Tz,DZ,aux1);
+                    subtract(aux1,TnewZ,zDIF); 
+                    phi(zDIF,PhiZ,0.000001,Ztr*10);
+                    revisa(zDIF);
+                    revisa(PhiZ);
 
-					cont--;
-				} 
+                    // 3) EvaLate gradient
+
+                    remap(Ix,TIx,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
+                    remap(Iy,TIy,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
+                    remap(Zx,TZx,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
+                    remap(Zy,TZy,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
+
+                    // 4) EvaLate Jacobian (dW/dP = [Jx1 0 Jx3; 0 Jy2 Jy3])
+
+                    if (cont == Niter)
+                    {
+                        jacobian_pyr(Jx1,Jy2,Jx3,Jy3,J11,J12,J13,J21,J22,J23,grillaX,grillaY,Td,fcx,fcy,cx,cy);
+                    }
+
+                    int pos = 0;
+
+                    while (pos < W2)
+                    {
+                        IJ1 = vTIx[pos]*vJx1[pos];
+                        IJ2 =                       vTIy[pos]*vJy2[pos];
+                        IJ3 = vTIx[pos]*vJx3[pos] + vTIy[pos]*vJy3[pos];
+                        IJ4 = vTIx[pos]*vJ11[pos] + vTIy[pos]*vJ21[pos];
+                        IJ5 = vTIx[pos]*vJ12[pos] + vTIy[pos]*vJ22[pos];
+                        IJ6 = vTIx[pos]*vJ13[pos] + vTIy[pos]*vJ23[pos];
+
+                        ZJ1 = vTZx[pos]*vJx1[pos];
+                        ZJ2 =                       vTZy[pos]*vJy2[pos];
+                        ZJ3 = vTZx[pos]*vJx3[pos] + vTZy[pos]*vJy3[pos] - 1;
+                        ZJ4 = vTZx[pos]*vJ11[pos] + vTZy[pos]*vJ21[pos] - vY[pos];
+                        ZJ5 = vTZx[pos]*vJ12[pos] + vTZy[pos]*vJ22[pos] + vX[pos];
+                        ZJ6 = vTZx[pos]*vJ13[pos] + vTZy[pos]*vJ23[pos];			
+
+                        float eI = vimDIF[pos];
+                        float eZ = vzDIF[pos];
+
+                        if (!(IJ1 != IJ1 || IJ2 != IJ2 || IJ3 != IJ3 || IJ4 != IJ4 || IJ5 != IJ5 || IJ6 != IJ6 || ZJ1 != ZJ1 || ZJ2 != ZJ2 || ZJ3 != ZJ3 || ZJ4 != ZJ4 || ZJ5 != ZJ5 || ZJ6 != ZJ6  || eI != eI  || eZ  != eZ))
+                        {
+
+                            float phiI = vPhiI[pos]*IJ1*kI;
+                            float phiZ = vPhiZ[pos]*ZJ1*kZ;		
+
+                            H11 = H11 + phiI *IJ1 +phiZ*ZJ1;
+                            H12 = H12 + phiI *IJ2 +phiZ*ZJ2;
+                            H13 = H13 + phiI *IJ3 +phiZ*ZJ3;
+                            H14 = H14 + phiI *IJ4 +phiZ*ZJ4;
+                            H15 = H15 + phiI *IJ5 +phiZ*ZJ5;
+                            H16 = H16 + phiI *IJ6 +phiZ*ZJ6;
+                            d1 = d1 + phiI*eI + phiZ*eZ; 
+
+                            phiI = vPhiI[pos]*IJ2*kI;
+                            phiZ = vPhiZ[pos]*ZJ2*kZ;				
+                            H22 = H22 + phiI *IJ2 +phiZ*ZJ2;
+                            H23 = H23 + phiI *IJ3 +phiZ*ZJ3;
+                            H24 = H24 + phiI *IJ4 +phiZ*ZJ4;
+                            H25 = H25 + phiI *IJ5 +phiZ*ZJ5;
+                            H26 = H26 + phiI *IJ6 +phiZ*ZJ6;
+                            d2 = d2 + phiI*eI + phiZ*eZ; 
+
+                            phiI = vPhiI[pos]*IJ3*kI;
+                            phiZ = vPhiZ[pos]*ZJ3*kZ;				
+                            H33 = H33 + phiI *IJ3 +phiZ*ZJ3;
+                            H34 = H34 + phiI *IJ4 +phiZ*ZJ4;
+                            H35 = H35 + phiI *IJ5 +phiZ*ZJ5;
+                            H36 = H36 + phiI *IJ6 +phiZ*ZJ6;
+                            d3 = d3 + phiI*eI + phiZ*eZ; 
+
+                            phiI = vPhiI[pos]*IJ4*kI;
+                            phiZ = vPhiZ[pos]*ZJ4*kZ;				
+                            H44 = H44 + phiI *IJ4 +phiZ*ZJ4;
+                            H45 = H45 + phiI *IJ5 +phiZ*ZJ5;
+                            H46 = H46 + phiI *IJ6 +phiZ*ZJ6;
+                            d4 = d4 + phiI*eI + phiZ*eZ; 
+
+                            phiI = vPhiI[pos]*IJ5*kI;
+                            phiZ = vPhiZ[pos]*ZJ5*kZ;				
+                            H55 = H55 + phiI *IJ5 +phiZ*ZJ5;
+                            H56 = H56 + phiI *IJ6 +phiZ*ZJ6;
+                            d5 = d5 + phiI*eI + phiZ*eZ; 
+
+                            phiI = vPhiI[pos]*IJ6*kI;
+                            phiZ = vPhiZ[pos]*ZJ6*kZ;				
+                            H66 = H66 + phiI *IJ6 +phiZ*ZJ6;
+                            d6 = d6 + phiI*eI + phiZ*eZ; 
 
 
-				for(int i2 = -step/2; i2 <= (step+1)/2; i2++){
-					for(int j2 = -step/2; j2 <= (step+1)/2; j2++){
+                        }	 
+                        pos++;
+                    }
 
-						int posi = Npoint -i2*Npx - j2;   
+                    mH[0*6+0] = H11+tetaP; mH[0*6+1] = H12; mH[0*6+2] = H13; mH[0*6+3] = H14; mH[0*6+4] = H15; mH[0*6+5] = H16; 
+                    mH[1*6+0] = H12; mH[1*6+1] = H22+tetaP; mH[1*6+2] = H23; mH[1*6+3] = H24; mH[1*6+4] = H25; mH[1*6+5] = H26; 
+                    mH[2*6+0] = H13; mH[2*6+1] = H23; mH[2*6+2] = H33+tetaP; mH[2*6+3] = H34; mH[2*6+4] = H35; mH[2*6+5] = H36; 
+                    mH[3*6+0] = H14; mH[3*6+1] = H24; mH[3*6+2] = H34; mH[3*6+3] = H44+tetaO; mH[3*6+4] = H45; mH[3*6+5] = H46; 
+                    mH[4*6+0] = H15; mH[4*6+1] = H25; mH[4*6+2] = H35; mH[4*6+3] = H45; mH[4*6+4] = H55+tetaO; mH[4*6+5] = H56;
+                    mH[5*6+0] = H16; mH[5*6+1] = H26; mH[5*6+2] = H36; mH[5*6+3] = H46; mH[5*6+4] = H56; mH[5*6+5] = H66+tetaO; 
 
-						ux[posi] = p[0];
-						uy[posi] = p[1];
-						uz[posi] = p[2];
-						qx[posi] = o[0];
-						qy[posi] = o[1];
-						qz[posi] = o[2];
+                    mDelta[0] = d1 + tetaP*(u[0]-p[0]); 
+                    mDelta[1] = d2 + tetaP*(u[1]-p[1]); 
+                    mDelta[2] = d3 + tetaP*(u[2]-p[2]);
+                    mDelta[3] = d4 + tetaO*(q[0]-o[0]); 
+                    mDelta[4] = d5 + tetaO*(q[1]-o[1]); 
+                    mDelta[5] = d6 + tetaO*(q[2]-o[2]);  
 
-					}
-				}
+                    dP = H.inv()*delta;
+                    update(P,O,dP);
 
-			} 
-		}
-	}
+                    cont--;
+                } 
 
-	Ux.copyTo(Px);
-	Uy.copyTo(Py);
-	Uz.copyTo(Pz);
-	Qx.copyTo(Ox);
-	Qy.copyTo(Oy);
-	Qz.copyTo(Oz);
+
+                for(int i2 = -step/2; i2 <= (step+1)/2; i2++)
+                {
+                    for(int j2 = -step/2; j2 <= (step+1)/2; j2++)
+                    {
+
+                        int posi = Npoint -i2*Npx - j2;   
+
+                        ux[posi] = p[0];
+                        uy[posi] = p[1];
+                        uz[posi] = p[2];
+                        qx[posi] = o[0];
+                        qy[posi] = o[1];
+                        qz[posi] = o[2];
+
+                    }
+                }
+
+            } 
+        }
+    }
+
+    Ux.copyTo(Px);
+    Uy.copyTo(Py);
+    Uz.copyTo(Pz);
+    Qx.copyTo(Ox);
+    Qy.copyTo(Oy);
+    Qz.copyTo(Oz);
 }
 
 

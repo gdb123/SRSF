@@ -36,6 +36,9 @@ void creaGrilla(Mat &grillaX, Mat &grillaY)
 
 void warp_pyr(const Mat &P, const Mat &O, const Mat &Px, const Mat &Py, const Mat &Pz, Mat &DZ, Mat &newX, Mat &newY, const Mat &D, float fcx, float fcy, float cx, float cy)
 {
+    // apply scene flow and  project back to camera coordinate
+    // for each point in first image, compute its projected pixel position in second image
+
 	int w = newX.cols;
 	int h = newX.rows;
 
@@ -48,7 +51,7 @@ void warp_pyr(const Mat &P, const Mat &O, const Mat &Px, const Mat &Py, const Ma
 	float *OO = (float*)O.data;
 
 	Mat Rot = Mat(3,3,CV_32FC1);    
-	expRODRI(Rot,O);
+	expRODRI(Rot,O); //exponential map
 	Mat X = Mat(3,1,CV_32FC1);  
 	Mat nX = Mat(3,1,CV_32FC1); 
 	Mat SF = Mat(3,1,CV_32FC1); 
@@ -61,11 +64,11 @@ void warp_pyr(const Mat &P, const Mat &O, const Mat &Px, const Mat &Py, const Ma
 
 	for(int y=0; y< h; y++ )
 	{
-		int row = y*w;
+		int row = y*w; //vector index
 
 		for(int x=0; x< w; x++ )
 		{
-			if (dataD[row+x] != dataD[row+x])
+			if (dataD[row+x] != dataD[row+x]) //if depth val is NaN
 			{
 				dataX[row+x] = -1;
 				dataY[row+x] = -1;
@@ -74,7 +77,7 @@ void warp_pyr(const Mat &P, const Mat &O, const Mat &Px, const Mat &Py, const Ma
 			{
 				float xx = x - cx;
 				float yy = y - cy;
-				float Z = 1/dataD[row+x];
+				float Z = 1/dataD[row+x]; //from inverse depth to depth
 				verX[0] = Z*xx/ fcx;
 				verX[1] = Z*yy/ fcy;
 				verX[2] = Z;
@@ -82,13 +85,15 @@ void warp_pyr(const Mat &P, const Mat &O, const Mat &Px, const Mat &Py, const Ma
 				sf[0] = px[row+x];
 				sf[1] = py[row+x];
 				sf[2] = pz[row+x];
+                
+                //!! apply scene flow
+				nX = Rot*X + P + SF; 
 
-				nX = Rot*X + P + SF;
-
+                //project back to camera coordinate
+                //for each point in first image, what is its projected pixel position in second image
 				dataX[row+x] = fcx*vernX[0]/vernX[2] + cx;
 				dataY[row+x] = fcy*vernX[1]/vernX[2] + cy;
 				deltaZ[row+x] = vernX[2] - verX[2];
-
 			}
 		}
 	}
@@ -207,7 +212,7 @@ void update(Mat &P, Mat &O, Mat &d)
 
 		expRigid(dSE,dP,dO);
 		expRigid(oldSE,P,O);
-		newSE = dSE*oldSE;
+		newSE = dSE*oldSE; //is it correct?
 		logRigid(newSE,P,O);
 	}
 }
@@ -309,13 +314,37 @@ void logRigid(const Mat &SE, Mat &P, Mat &w)
 
 }
 
-void trackPoints(const Mat &gray, const Mat &Z, const Mat &a_gray, const Mat &a_Z, const Mat &a_D, const Mat &Ix, const Mat &Iy, const Mat &Zx, const Mat &Zy, int Niter, CvPoint2D32f punto[], Mat &P, Mat &O, const Mat &Px, const Mat &Py, const Mat &Pz, int pyr, int dd, float m_rgb[3][3], int WW, float kI, float kZ, int Npx, int Npy, int band[])
+void trackPoints(const Mat &gray, const Mat &Z, const Mat &a_gray, const Mat &a_Z, const Mat &a_D, const Mat &Ix, const Mat &Iy, const Mat &Zx, const Mat &Zy, int Niter, CvPoint2D32f punto[], 
+        Mat &P, Mat &O, const Mat &Px, const Mat &Py, const Mat &Pz, int pyr, int dd, float m_rgb[3][3], int WW, float kI, float kZ, int Npx, int Npy, int band[])
 {
-	int W = 1000;
+    // gray: second gray image
+    // Z: second depth image
+    // a_gray: first gray image 
+    // a_Z: first depth image
+    // a_D: first inverse depth image
+    // Ix, Iy, Zx, Zy: derivative image of second depth image and gray image
+    // Niter: number of iteration, 200 here
+    // punto[]: point, 2D image coordinate for each image points, used for u,v look up
+    // P: 3*1 vector
+    // O: 3*1 vector
+    // Px, Py, Pz: scene flow x,y,z
+    // pyr: Levels of the pyramid
+    // dd: pixel step (it considers every "stepR" pixel)
+    // m_rgb: camera matrix
+    // WW: set to zero?
+    // kI: brightness term weight
+    // kZ: depth term weight
+    // Npx: width
+    // Npy: height
+    // band[]: mask for scene flow computation
+	
+    int W = 1000;
 	kI = kI/W;
 	kZ = kZ/W;
 	float pot = pow (2.0,pyr);
-	int Wpot = WW*pot;
+	int Wpot = WW*pot; //used for crop edge, should it be WW/pot? 
+
+    // scale the camera matrix for each pyramid
 	float fcx = m_rgb[0][0] / pot;
 	float fcy = m_rgb[1][1] / pot;
 	float cx = m_rgb[0][2] / pot;
@@ -408,162 +437,171 @@ void trackPoints(const Mat &gray, const Mat &Z, const Mat &a_gray, const Mat &a_
 
 	CvPoint2D32f punto2;
 
-	creaGrilla(grillaX,grillaY);
+	creaGrilla(grillaX,grillaY); //set 2D image coordinate
 
-	while (cont > 0) {
+    while (cont > 0) 
+    {
 
-		H11=0;H12=0;H13=0;H14=0;H15=0;H16=0;H22=0;H23=0;H24=0;H25=0;H26=0;H33=0;H34=0;H35=0;H36=0;H44=0;H45=0;H46=0;H55=0;H56=0;H66=0;
-		d1=0;d2=0;d3=0;d4=0;d5=0;d6=0;
+        H11=0;H12=0;H13=0;H14=0;H15=0;H16=0;H22=0;H23=0;H24=0;H25=0;H26=0;H33=0;H34=0;H35=0;H36=0;H44=0;H45=0;H46=0;H55=0;H56=0;H66=0;
+        d1=0;d2=0;d3=0;d4=0;d5=0;d6=0;
 
-		// 1) Compute warped image with current parameters
+        // 1) Compute warped image with current parameters
 
-		warp_pyr(P,O,Px,Py,Pz,DZ,newX,newY,a_D,fcx,fcy,cx,cy);
+        warp_pyr(P,O,Px,Py,Pz,DZ,newX,newY,a_D,fcx,fcy,cx,cy);
 
-		subtract(newX,cx,aux1);
-		multiply(a_Z,aux1,X,1.0/fcx);	
+        // calculate the X coordinate in 3D for each new projected point
+        subtract(newX,cx,aux1);
+        multiply(a_Z,aux1,X,1.0/fcx);	
 
-		subtract(newY,cy,aux1);
-		multiply(a_Z,aux1,Y,1.0/fcy);
+        // calculate the Y coordinate in 3D for each new projected point
+        subtract(newY,cy,aux1);
+        multiply(a_Z,aux1,Y,1.0/fcy);
 
-		convertMaps(newX,newY,newXX,newYY,CV_16SC2);
+        convertMaps(newX,newY,newXX,newYY,CV_16SC2);
 
-		remap(gray,TnewI,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
-		remap(Z,TnewZ,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
+        // warp second image to first image coordinate
+        remap(gray,TnewI,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
+        remap(Z,TnewZ,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
 
-		// 2) Compute error image
+        // 2) Compute error image
 
-		subtract(a_gray,TnewI,imDIF);
-		phi(imDIF,PhiI,0.000001,Itr*0.1);
-		revisa(imDIF);
-		revisa(PhiI);
+        subtract(a_gray,TnewI,imDIF);
+        phi(imDIF,PhiI,0.000001,Itr*0.1);
+        revisa(imDIF); //set invalid point to 0
+        revisa(PhiI);
 
-		add(a_Z,DZ,aux1);
-		subtract(aux1,TnewZ,zDIF);
-		phi(zDIF,PhiZ,0.000001,Ztr*10);
-		revisa(zDIF);
-		revisa(PhiZ);
+        add(a_Z,DZ,aux1);
+        subtract(aux1,TnewZ,zDIF);
+        phi(zDIF,PhiZ,0.000001,Ztr*10);
+        revisa(zDIF);
+        revisa(PhiZ);
 
-		// 3) EvaLate gradient
+        // 3) EvaLate gradient
 
-		remap(Ix,TIx,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
-		remap(Iy,TIy,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
-		remap(Zx,TZx,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
-		remap(Zy,TZy,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
+        remap(Ix,TIx,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
+        remap(Iy,TIy,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
+        remap(Zx,TZx,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
+        remap(Zy,TZy,newXX,newYY,CV_INTER_LINEAR,BORDER_CONSTANT,NaN);
 
-		// 4) EvaLate Jacobian (dW/dP = [Jx1 0 Jx3; 0 Jy2 Jy3])
+        // 4) EvaLate Jacobian (dW/dP = [Jx1 0 Jx3; 0 Jy2 Jy3])
 
-		if (cont == Niter)
-		{
-			jacobian_pyr(Jx1,Jy2,Jx3,Jy3,J11,J12,J13,J21,J22,J23,grillaX,grillaY,a_D,fcx,fcy,cx,cy);
-		}
+        if (cont == Niter)
+        {
+            jacobian_pyr(Jx1,Jy2,Jx3,Jy3,J11,J12,J13,J21,J22,J23,grillaX,grillaY,a_D,fcx,fcy,cx,cy); //calculate Jacobian, check
+        }
 
-		Wpot = WW*pot;
+        Wpot = WW*pot;
 
-		for (int i = Wpot; i < Npy - Wpot; i = i+1 +dd) {
+        for (int i = Wpot; i < Npy - Wpot; i = i+1 +dd) 
+        {
 
-			int ii = i*width[0]*pot;
+            int ii = i*width[0]*pot;
 
-			for (int j = Wpot; j < Npx - Wpot; j = j+1 +dd) {
+            for (int j = Wpot; j < Npx - Wpot; j = j+1 +dd) 
+            {
 
-				point = ii+j*pot;
+                point = ii+j*pot;
 
-				if (band[point] == 1) {
+                if (band[point] == 1) 
+                {
 
-					punto2.x = (punto[point].x/pot);
-					punto2.y = (punto[point].y/pot);
+                    punto2.x = (punto[point].x/pot);
+                    punto2.y = (punto[point].y/pot);
 
-					for (int i2 = punto2.y - WW; i2 <= punto2.y + WW; i2++) {
+                    for (int i2 = punto2.y - WW; i2 <= punto2.y + WW; i2++) 
+                    {
 
-						int row = i2*Npx;
+                        int row = i2*Npx;
 
-						for (int j2 = punto2.x - WW; j2 <= punto2.x + WW; j2++) {
+                        for (int j2 = punto2.x - WW; j2 <= punto2.x + WW; j2++) 
+                        {
 
-							int pos = row + j2;
+                            int pos = row + j2;
 
-							IJ1 = vTIx[pos]*vJx1[pos];
-							IJ2 =                       vTIy[pos]*vJy2[pos];
-							IJ3 = vTIx[pos]*vJx3[pos] + vTIy[pos]*vJy3[pos];
-							IJ4 = vTIx[pos]*vJ11[pos] + vTIy[pos]*vJ21[pos];
-							IJ5 = vTIx[pos]*vJ12[pos] + vTIy[pos]*vJ22[pos];
-							IJ6 = vTIx[pos]*vJ13[pos] + vTIy[pos]*vJ23[pos];
+                            IJ1 = vTIx[pos]*vJx1[pos];
+                            IJ2 =                       vTIy[pos]*vJy2[pos];
+                            IJ3 = vTIx[pos]*vJx3[pos] + vTIy[pos]*vJy3[pos];
+                            IJ4 = vTIx[pos]*vJ11[pos] + vTIy[pos]*vJ21[pos];
+                            IJ5 = vTIx[pos]*vJ12[pos] + vTIy[pos]*vJ22[pos];
+                            IJ6 = vTIx[pos]*vJ13[pos] + vTIy[pos]*vJ23[pos];
 
-							ZJ1 = vTZx[pos]*vJx1[pos];
-							ZJ2 =                       vTZy[pos]*vJy2[pos];
-							ZJ3 = vTZx[pos]*vJx3[pos] + vTZy[pos]*vJy3[pos] - 1;
-							ZJ4 = vTZx[pos]*vJ11[pos] + vTZy[pos]*vJ21[pos] - YY[pos];
-							ZJ5 = vTZx[pos]*vJ12[pos] + vTZy[pos]*vJ22[pos] + XX[pos];
-							ZJ6 = vTZx[pos]*vJ13[pos] + vTZy[pos]*vJ23[pos];
+                            ZJ1 = vTZx[pos]*vJx1[pos];
+                            ZJ2 =                       vTZy[pos]*vJy2[pos];
+                            ZJ3 = vTZx[pos]*vJx3[pos] + vTZy[pos]*vJy3[pos] - 1;
+                            ZJ4 = vTZx[pos]*vJ11[pos] + vTZy[pos]*vJ21[pos] - YY[pos];
+                            ZJ5 = vTZx[pos]*vJ12[pos] + vTZy[pos]*vJ22[pos] + XX[pos];
+                            ZJ6 = vTZx[pos]*vJ13[pos] + vTZy[pos]*vJ23[pos];
 
-							float eI = vimDIF[pos];
-							float eZ = vzDIF[pos];
+                            float eI = vimDIF[pos];
+                            float eZ = vzDIF[pos];
 
-							if (!(IJ1 != IJ1 || IJ2 != IJ2 || IJ3 != IJ3 || IJ4 != IJ4 || IJ5 != IJ5 || IJ6 != IJ6 || ZJ1 != ZJ1 || ZJ2 != ZJ2 || ZJ3 != ZJ3 || ZJ4 != ZJ4 || ZJ5 != ZJ5 || ZJ6 != ZJ6  || eI != eI  || eZ  != eZ))
-							{
+                            if (!(IJ1 != IJ1 || IJ2 != IJ2 || IJ3 != IJ3 || IJ4 != IJ4 || IJ5 != IJ5 || IJ6 != IJ6 || ZJ1 != ZJ1 || ZJ2 != ZJ2 || ZJ3 != ZJ3 || ZJ4 != ZJ4 || ZJ5 != ZJ5 || ZJ6 != ZJ6  || eI != eI  || eZ  != eZ))
+                            {
 
-								float phiI = vphiI[pos]*IJ1*kI;
-								float phiZ = vphiZ[pos]*ZJ1*kZ;		
+                                float phiI = vphiI[pos]*IJ1*kI;
+                                float phiZ = vphiZ[pos]*ZJ1*kZ;		
 
-								H11 = H11 + phiI *IJ1 +phiZ*ZJ1;
-								H12 = H12 + phiI *IJ2 +phiZ*ZJ2;
-								H13 = H13 + phiI *IJ3 +phiZ*ZJ3;
-								H14 = H14 + phiI *IJ4 +phiZ*ZJ4;
-								H15 = H15 + phiI *IJ5 +phiZ*ZJ5;
-								H16 = H16 + phiI *IJ6 +phiZ*ZJ6;
-								d1 = d1 + phiI*eI + phiZ*eZ; 
+                                H11 = H11 + phiI *IJ1 +phiZ*ZJ1;
+                                H12 = H12 + phiI *IJ2 +phiZ*ZJ2;
+                                H13 = H13 + phiI *IJ3 +phiZ*ZJ3;
+                                H14 = H14 + phiI *IJ4 +phiZ*ZJ4;
+                                H15 = H15 + phiI *IJ5 +phiZ*ZJ5;
+                                H16 = H16 + phiI *IJ6 +phiZ*ZJ6;
+                                d1 = d1 + phiI*eI + phiZ*eZ; 
 
-								phiI = vphiI[pos]*IJ2*kI;
-								phiZ = vphiZ[pos]*ZJ2*kZ;				
-								H22 = H22 + phiI *IJ2 +phiZ*ZJ2;
-								H23 = H23 + phiI *IJ3 +phiZ*ZJ3;
-								H24 = H24 + phiI *IJ4 +phiZ*ZJ4;
-								H25 = H25 + phiI *IJ5 +phiZ*ZJ5;
-								H26 = H26 + phiI *IJ6 +phiZ*ZJ6;
-								d2 = d2 + phiI*eI + phiZ*eZ; 
+                                phiI = vphiI[pos]*IJ2*kI;
+                                phiZ = vphiZ[pos]*ZJ2*kZ;				
+                                H22 = H22 + phiI *IJ2 +phiZ*ZJ2;
+                                H23 = H23 + phiI *IJ3 +phiZ*ZJ3;
+                                H24 = H24 + phiI *IJ4 +phiZ*ZJ4;
+                                H25 = H25 + phiI *IJ5 +phiZ*ZJ5;
+                                H26 = H26 + phiI *IJ6 +phiZ*ZJ6;
+                                d2 = d2 + phiI*eI + phiZ*eZ; 
 
-								phiI = vphiI[pos]*IJ3*kI;
-								phiZ = vphiZ[pos]*ZJ3*kZ;				
-								H33 = H33 + phiI *IJ3 +phiZ*ZJ3;
-								H34 = H34 + phiI *IJ4 +phiZ*ZJ4;
-								H35 = H35 + phiI *IJ5 +phiZ*ZJ5;
-								H36 = H36 + phiI *IJ6 +phiZ*ZJ6;
-								d3 = d3 + phiI*eI + phiZ*eZ; 
+                                phiI = vphiI[pos]*IJ3*kI;
+                                phiZ = vphiZ[pos]*ZJ3*kZ;				
+                                H33 = H33 + phiI *IJ3 +phiZ*ZJ3;
+                                H34 = H34 + phiI *IJ4 +phiZ*ZJ4;
+                                H35 = H35 + phiI *IJ5 +phiZ*ZJ5;
+                                H36 = H36 + phiI *IJ6 +phiZ*ZJ6;
+                                d3 = d3 + phiI*eI + phiZ*eZ; 
 
-								phiI = vphiI[pos]*IJ4*kI;
-								phiZ = vphiZ[pos]*ZJ4*kZ;				
-								H44 = H44 + phiI *IJ4 +phiZ*ZJ4;
-								H45 = H45 + phiI *IJ5 +phiZ*ZJ5;
-								H46 = H46 + phiI *IJ6 +phiZ*ZJ6;
-								d4 = d4 + phiI*eI + phiZ*eZ; 
+                                phiI = vphiI[pos]*IJ4*kI;
+                                phiZ = vphiZ[pos]*ZJ4*kZ;				
+                                H44 = H44 + phiI *IJ4 +phiZ*ZJ4;
+                                H45 = H45 + phiI *IJ5 +phiZ*ZJ5;
+                                H46 = H46 + phiI *IJ6 +phiZ*ZJ6;
+                                d4 = d4 + phiI*eI + phiZ*eZ; 
 
-								phiI = vphiI[pos]*IJ5*kI;
-								phiZ = vphiZ[pos]*ZJ5*kZ;				
-								H55 = H55 + phiI *IJ5 +phiZ*ZJ5;
-								H56 = H56 + phiI *IJ6 +phiZ*ZJ6;
-								d5 = d5 + phiI*eI + phiZ*eZ; 
+                                phiI = vphiI[pos]*IJ5*kI;
+                                phiZ = vphiZ[pos]*ZJ5*kZ;				
+                                H55 = H55 + phiI *IJ5 +phiZ*ZJ5;
+                                H56 = H56 + phiI *IJ6 +phiZ*ZJ6;
+                                d5 = d5 + phiI*eI + phiZ*eZ; 
 
-								phiI = vphiI[pos]*IJ6*kI;
-								phiZ = vphiZ[pos]*ZJ6*kZ;				
-								H66 = H66 + phiI *IJ6 +phiZ*ZJ6;
-								d6 = d6 + phiI*eI + phiZ*eZ; 
+                                phiI = vphiI[pos]*IJ6*kI;
+                                phiZ = vphiZ[pos]*ZJ6*kZ;				
+                                H66 = H66 + phiI *IJ6 +phiZ*ZJ6;
+                                d6 = d6 + phiI*eI + phiZ*eZ; 
 
-							} 
-						}
-					}
-				}
-			}
-		}
+                            } 
+                        }
+                    }
+                }
+            }
+        }
 
-		mH[0*6+0] = H11; mH[0*6+1] = H12; mH[0*6+2] = H13; mH[0*6+3] = H14; mH[0*6+4] = H15; mH[0*6+5] = H16; 
-		mH[1*6+0] = H12; mH[1*6+1] = H22; mH[1*6+2] = H23; mH[1*6+3] = H24; mH[1*6+4] = H25; mH[1*6+5] = H26; 
-		mH[2*6+0] = H13; mH[2*6+1] = H23; mH[2*6+2] = H33; mH[2*6+3] = H34; mH[2*6+4] = H35; mH[2*6+5] = H36; 
-		mH[3*6+0] = H14; mH[3*6+1] = H24; mH[3*6+2] = H34; mH[3*6+3] = H44; mH[3*6+4] = H45; mH[3*6+5] = H46; 
-		mH[4*6+0] = H15; mH[4*6+1] = H25; mH[4*6+2] = H35; mH[4*6+3] = H45; mH[4*6+4] = H55; mH[4*6+5] = H56;
-		mH[5*6+0] = H16; mH[5*6+1] = H26; mH[5*6+2] = H36; mH[5*6+3] = H46; mH[5*6+4] = H56; mH[5*6+5] = H66; 
+        mH[0*6+0] = H11; mH[0*6+1] = H12; mH[0*6+2] = H13; mH[0*6+3] = H14; mH[0*6+4] = H15; mH[0*6+5] = H16; 
+        mH[1*6+0] = H12; mH[1*6+1] = H22; mH[1*6+2] = H23; mH[1*6+3] = H24; mH[1*6+4] = H25; mH[1*6+5] = H26; 
+        mH[2*6+0] = H13; mH[2*6+1] = H23; mH[2*6+2] = H33; mH[2*6+3] = H34; mH[2*6+4] = H35; mH[2*6+5] = H36; 
+        mH[3*6+0] = H14; mH[3*6+1] = H24; mH[3*6+2] = H34; mH[3*6+3] = H44; mH[3*6+4] = H45; mH[3*6+5] = H46; 
+        mH[4*6+0] = H15; mH[4*6+1] = H25; mH[4*6+2] = H35; mH[4*6+3] = H45; mH[4*6+4] = H55; mH[4*6+5] = H56;
+        mH[5*6+0] = H16; mH[5*6+1] = H26; mH[5*6+2] = H36; mH[5*6+3] = H46; mH[5*6+4] = H56; mH[5*6+5] = H66; 
 
-		mDelta[0] = d1; mDelta[1] = d2; mDelta[2] = d3; mDelta[3] = d4; mDelta[4] = d5; mDelta[5] = d6;  
+        mDelta[0] = d1; mDelta[1] = d2; mDelta[2] = d3; mDelta[3] = d4; mDelta[4] = d5; mDelta[5] = d6;  
 
-		dP = H.inv()*delta;
-		update(P,O,dP);
-		cont --;		
-	}      
+        dP = H.inv()*delta;
+        update(P,O,dP);
+        cont --;		
+    }      
 }

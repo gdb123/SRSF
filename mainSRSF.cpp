@@ -15,7 +15,7 @@
 #include "depth.h"
 #include <fstream>
 
-float m_rgb[3][3]= {0};
+float m_rgb[3][3]= {0}; // Camera Matrix K
 static float NaN = 0.0/0.0;
 
 // Settings
@@ -394,7 +394,7 @@ int main(int argc, char **argv)
 
 				DEPTH.copyTo(DEPTH1);
 
-                pyr = Npyr;
+                pyr = Npyr; //Start from lowest resolution
 
                 while (pyr >= PyrLow) //While have not reached the lowest pyramid level 
                 {
@@ -412,7 +412,12 @@ int main(int argc, char **argv)
                         if (bSEL != 0) // Selection: 		0 <- Non-Rigid, 1 <- Rigid, 2 <- Rigid + Non-Rigid
                         {
 
-                            trackPoints(p_gray[pyr], p_Z[pyr], a_gray[pyr], a_Z[pyr], a_D[pyr], Ix[pyr], Iy[pyr], Zx[pyr], Zy[pyr], Nrigid, point, P, O, SF[3 * pyr], SF[3 * pyr + 1], SF[3 * pyr + 2], pyr,stepR, m_rgb, 0, kI, kZ, width[pyr], height[pyr], bandSF0);
+                            // estimate SE(3) caused by camera motion
+                            trackPoints(p_gray[pyr], p_Z[pyr], a_gray[pyr], a_Z[pyr], a_D[pyr], Ix[pyr], Iy[pyr], Zx[pyr], Zy[pyr],
+                                    Nrigid, point, P, O, SF[3 * pyr], SF[3 * pyr + 1], SF[3 * pyr + 2],
+                                    pyr,stepR, m_rgb, 0, kI, kZ, width[pyr], height[pyr], bandSF0);
+
+                            // estimate global rigid scene flow from SE(3)
                             SFrigidGLOBAL(SFrig[3*pyr], SFrig[3*pyr + 1], SFrig[3*pyr + 2],P,O, a_D[0], point, bandSF0, fcx, fcy, cx, cy, pyr);
 
                         }
@@ -424,10 +429,12 @@ int main(int argc, char **argv)
                         while (warps > 0 && bSEL != 1) 
                         {
 
-                            trackLKrig(p_gray[pyr], p_Z[pyr], a_gray[pyr], a_Z[pyr], a_D[pyr], Ix[pyr], Iy[pyr], Zx[pyr], Zy[pyr], Niter, point, T[3 * pyr], T[3 * pyr + 1], T[3 * pyr + 2], W[3 * pyr], W[3 * pyr + 1], W[3 * pyr + 2], SFrig[3 * pyr], SFrig[3 * pyr + 1], SFrig[3 * pyr + 2], pyr, m_rgb, WW, kI, kZ, Kappa, kRot*Kappa, width[pyr], height[pyr], bandSF0, stepNR);
+                            trackLKrig(p_gray[pyr], p_Z[pyr], a_gray[pyr], a_Z[pyr], a_D[pyr], Ix[pyr], Iy[pyr], Zx[pyr], Zy[pyr],
+                                    Niter, point, T[3 * pyr], T[3 * pyr + 1], T[3 * pyr + 2], W[3 * pyr], W[3 * pyr + 1], W[3 * pyr + 2],
+                                    SFrig[3 * pyr], SFrig[3 * pyr + 1], SFrig[3 * pyr + 2], pyr, m_rgb, WW, kI, kZ,
+                                    Kappa, kRot*Kappa, width[pyr], height[pyr], bandSF0, stepNR);
 
                             if (bTVvector == 1) // TV Rot-component:	0 < channel-by-channel, 1 <- vectorial
-
                             {
 
                                 TV_Moreno(W[3 * pyr], W[3 * pyr + 1], W[3 * pyr + 2], TViter, etaR);
@@ -458,7 +465,8 @@ int main(int argc, char **argv)
                                 resize(W[3 * pyr + 1], W[3 * (pyr - 1) + 1], W[3 * (pyr - 1) + 1].size(), 0, 0, CV_INTER_CUBIC);
                                 resize(W[3 * pyr + 2], W[3 * (pyr - 1) + 2], W[3 * (pyr - 1) + 2].size(), 0, 0, CV_INTER_CUBIC);
 
-                                SFrigidLOCAL(SF[3*(pyr-1)],SF[3*(pyr-1)+1],SF[3*(pyr-1)+2],T[3*(pyr-1)],T[3*(pyr-1)+1],T[3*(pyr-1)+2],W[3*(pyr-1)],W[3*(pyr-1)+1],W[3*(pyr-1)+2], a_D[0],point,bandSF0,fcx,fcy,cx,cy,pyr-1);
+                                SFrigidLOCAL(SF[3*(pyr-1)],SF[3*(pyr-1)+1],SF[3*(pyr-1)+2],T[3*(pyr-1)],T[3*(pyr-1)+1],T[3*(pyr-1)+2],
+                                        W[3*(pyr-1)],W[3*(pyr-1)+1],W[3*(pyr-1)+2], a_D[0],point,bandSF0,fcx,fcy,cx,cy,pyr-1);
 
 
                             }
