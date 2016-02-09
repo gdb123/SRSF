@@ -296,8 +296,8 @@ void trackLKrig(const Mat &gray, const Mat &Z, const Mat &a_gray, const Mat &a_Z
         for (int j=step; j<Npx-step; j = j + step + 1 )
         {
 
-            point = ii+j*pot;
-            Npoint = i*Npx+j;
+            point = ii+j*pot; //in the finest image level
+            Npoint = i*Npx+j; //in this image level
 
             if (band[point] == 1)
             {
@@ -352,8 +352,8 @@ void trackLKrig(const Mat &gray, const Mat &Z, const Mat &a_gray, const Mat &a_Z
                     revisa(imDIF);
                     revisa(PhiI);
 
-                    add(Tz,DZ,aux1);
-                    subtract(aux1,TnewZ,zDIF); 
+                    add(Tz,DZ,aux1); //add DZ to transform depth to second frame
+                    subtract(aux1,TnewZ,zDIF); //figure out change in depth due to deformation 
                     phi(zDIF,PhiZ,0.000001,Ztr*10);
                     revisa(zDIF);
                     revisa(PhiZ);
@@ -468,6 +468,9 @@ void trackLKrig(const Mat &gray, const Mat &Z, const Mat &a_gray, const Mat &a_Z
                 } 
 
 
+                // What does it do? step?
+                // update the U and Q
+                // Fill the step
                 for(int i2 = -step/2; i2 <= (step+1)/2; i2++)
                 {
                     for(int j2 = -step/2; j2 <= (step+1)/2; j2++)

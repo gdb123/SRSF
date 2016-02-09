@@ -465,6 +465,7 @@ int main(int argc, char **argv)
                                 resize(W[3 * pyr + 1], W[3 * (pyr - 1) + 1], W[3 * (pyr - 1) + 1].size(), 0, 0, CV_INTER_CUBIC);
                                 resize(W[3 * pyr + 2], W[3 * (pyr - 1) + 2], W[3 * (pyr - 1) + 2].size(), 0, 0, CV_INTER_CUBIC);
 
+                                // Calculate scene flow for each pyramid
                                 SFrigidLOCAL(SF[3*(pyr-1)],SF[3*(pyr-1)+1],SF[3*(pyr-1)+2],T[3*(pyr-1)],T[3*(pyr-1)+1],T[3*(pyr-1)+2],
                                         W[3*(pyr-1)],W[3*(pyr-1)+1],W[3*(pyr-1)+2], a_D[0],point,bandSF0,fcx,fcy,cx,cy,pyr-1);
 
